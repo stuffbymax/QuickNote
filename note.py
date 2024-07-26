@@ -6,7 +6,7 @@ import os
 class TextEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("note")
+        self.root.title("quick note")
         self.root.geometry("800x600")
 
         self.config_file = "config.json"
@@ -203,7 +203,7 @@ class TextEditor:
         self.line_numbers.yview_moveto(self.text_area.yview()[0])
 
     def show_about(self):
-        messagebox.showinfo("About", "note v0.0.1")
+        messagebox.showinfo("About", "quick note v0.0.1")
 
     def exit_application(self):
         self.root.destroy()
