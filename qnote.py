@@ -60,7 +60,8 @@ class TextEditor:
         self.dark_theme_menu.add_command(label="Dracula", command=self.dracula_theme)
         self.dark_theme_menu.add_command(label="Tokyo Night", command=self.tokyo_night_theme)
         self.dark_theme_menu.add_command(label="Gruvbox", command=self.gruvbox_theme)
-        self.dark_theme_menu.add_command(label="Nordic", command=self.nordic_theme)  # Add Nordic theme option
+        self.dark_theme_menu.add_command(label="Nordic", command=self.nordic_theme)  
+        self.dark_theme_menu.add_command(label="black", command=self.black_theme)  
 
         self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Help", menu=self.help_menu)
@@ -130,7 +131,9 @@ class TextEditor:
             self.gruvbox_theme()
         elif self.theme == "nordic":
             self.nordic_theme()
-
+        elif self.theme == "black":
+            self.black_theme()
+            
     def light_theme(self):
         self.theme = "light"
         self.text_area.config(bg="white", fg="black", insertbackground="black")
@@ -183,6 +186,12 @@ class TextEditor:
         self.theme = "nordic"
         self.text_area.config(bg="#2E3440", fg="#D8DEE9", insertbackground="#D8DEE9")
         self.line_numbers.config(bg="#3B4252", fg="#D8DEE9")
+        self.save_config()
+        
+    def black_theme(self):
+        self.theme = "nordic"
+        self.text_area.config(bg="#000000", fg="#D8DEE9", insertbackground="#D8DEE9")
+        self.line_numbers.config(bg="#000000", fg="#D8DEE9")
         self.save_config()
 
     def on_content_changed(self, event=None):
