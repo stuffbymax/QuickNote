@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import json
 import os
+import re  # Import the regular expression module
 
 class TextEditor:
     def __init__(self, root):
@@ -18,7 +19,7 @@ class TextEditor:
 
         self.text_area = tk.Text(self.root, wrap="word", undo=True)
         self.text_area.pack(side='right', fill="both", expand=True)
-        self.text_area.bind('<Any-KeyPress>', self.on_content_changed)
+        self.text_area.bind('<KeyRelease>', self.on_content_changed)  # Use KeyRelease for more consistent highlighting
         self.text_area.bind('<Button-1>', self.on_content_changed)
 
         self.menu_bar = tk.Menu(self.root)
@@ -46,7 +47,7 @@ class TextEditor:
 
         self.theme_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Theme", menu=self.theme_menu)
-        
+
         self.light_theme_menu = tk.Menu(self.theme_menu, tearoff=0)
         self.theme_menu.add_cascade(label="Light Themes", menu=self.light_theme_menu)
         self.light_theme_menu.add_command(label="Light Theme", command=self.light_theme)
@@ -60,8 +61,9 @@ class TextEditor:
         self.dark_theme_menu.add_command(label="Dracula", command=self.dracula_theme)
         self.dark_theme_menu.add_command(label="Tokyo Night", command=self.tokyo_night_theme)
         self.dark_theme_menu.add_command(label="Gruvbox", command=self.gruvbox_theme)
-        self.dark_theme_menu.add_command(label="Nordic", command=self.nordic_theme)  
-        self.dark_theme_menu.add_command(label="black", command=self.black_theme)  
+        self.dark_theme_menu.add_command(label="Nordic", command=self.nordic_theme)
+        self.dark_theme_menu.add_command(label="black", command=self.black_theme)
+        self.dark_theme_menu.add_command(label="new black", command=self.new_black_theme)
 
         self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Help", menu=self.help_menu)
@@ -78,19 +80,43 @@ class TextEditor:
         self.root.bind("<Control-a>", self.select_all)
         self.root.bind("<Control-q>", lambda event: self.exit_application())  # Bind Ctrl+Q to exit
 
+        # Syntax Highlighting
+        self.keywords = ["if", "else", "for", "while", "def", "return", "class", "import", "from", "try", "except", "finally"]
+        self.builtins = ["True", "False", "None", "print", "len", "range"]
+        self.setup_tags()
+
+
+    def setup_tags(self):
+        # Define the style for each tag
+        self.text_area.tag_config("keyword", foreground="blue")
+        self.text_area.tag_config("builtin", foreground="purple")
+        self.text_area.tag_config("string", foreground="green")
+        self.text_area.tag_config("number", foreground="orange")
+        self.text_area.tag_config("comment", foreground="gray", font=("Arial", 10, "italic"))
+        self.text_area.tag_config("bracket", foreground="brown")
+        # HTML Tags
+        self.text_area.tag_config("html_tag", foreground="darkblue")
+        self.text_area.tag_config("html_attribute", foreground="firebrick")
+        self.text_area.tag_config("html_attribute_value", foreground="forestgreen")
+        self.text_area.tag_config("html_comment", foreground="gray", font=("Arial", 10, "italic"))
+        self.text_area.tag_config("html_entity", foreground="teal")
+
+
     def new_file(self):
         self.text_area.delete(1.0, tk.END)
         self.file_path = None
         self.update_line_numbers()
+        self.highlight_syntax() # Added to highlight on new_file
 
     def open_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+        file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("HTML Files", "*.html"), ("All Files", "*.*")])
         if file_path:
             self.file_path = file_path
             with open(file_path, "r") as file:
                 self.text_area.delete(1.0, tk.END)
                 self.text_area.insert(tk.END, file.read())
             self.update_line_numbers()
+            self.highlight_syntax() # Added to highlight on open_file
 
     def save_file(self):
         if self.file_path:
@@ -100,7 +126,7 @@ class TextEditor:
             self.save_as_file()
 
     def save_as_file(self):
-        file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+        file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text Files", "*.txt"), ("HTML Files", "*.html"), ("All Files", "*.*")])
         if file_path:
             self.file_path = file_path
             with open(file_path, "w") as file:
@@ -133,6 +159,8 @@ class TextEditor:
             self.nordic_theme()
         elif self.theme == "black":
             self.black_theme()
+        elif self.theme == "newblack":
+            self.new_black_theme()
             
     def light_theme(self):
         self.theme = "light"
@@ -187,16 +215,23 @@ class TextEditor:
         self.text_area.config(bg="#2E3440", fg="#D8DEE9", insertbackground="#D8DEE9")
         self.line_numbers.config(bg="#3B4252", fg="#D8DEE9")
         self.save_config()
-        
+    
     def black_theme(self):
         self.theme = "nordic"
         self.text_area.config(bg="#000000", fg="#D8DEE9", insertbackground="#D8DEE9")
         self.line_numbers.config(bg="#000000", fg="#D8DEE9")
         self.save_config()
+    
+    def new_black_theme(self):
+        self.theme = "new black"
+        self.text_area.config(bg="#000000", fg="#D8DEE9", insertbackground="#D8DEE9")
+        self.line_numbers.config(bg="#000000", fg="#eb0c0c")
+        self.save_config()
 
     def on_content_changed(self, event=None):
         self.update_line_numbers()
         self.update_scroll_position()
+        self.highlight_syntax()
 
     def update_line_numbers(self):
         self.line_numbers.config(state='normal')
@@ -228,6 +263,95 @@ class TextEditor:
                 config = json.load(file)
                 self.theme = config.get("theme", "light")
         self.apply_theme()
+
+    def highlight_syntax(self):
+        # Remove existing tags in the current viewport to prevent errors
+        self.text_area.tag_remove("keyword", "1.0", "end")
+        self.text_area.tag_remove("builtin", "1.0", "end")
+        self.text_area.tag_remove("string", "1.0", "end")
+        self.text_area.tag_remove("number", "1.0", "end")
+        self.text_area.tag_remove("comment", "1.0", "end")
+        self.text_area.tag_remove("bracket", "1.0", "end")
+        self.text_area.tag_remove("html_tag", "1.0", "end")
+        self.text_area.tag_remove("html_attribute", "1.0", "end")
+        self.text_area.tag_remove("html_attribute_value", "1.0", "end")
+        self.text_area.tag_remove("html_comment", "1.0", "end")
+        self.text_area.tag_remove("html_entity", "1.0", "end")
+
+        text = self.text_area.get("1.0", "end-1c")
+
+        # Apply keyword highlight
+        for keyword in self.keywords:
+            for match in re.finditer(r'\b' + re.escape(keyword) + r'\b', text):
+                start_index = f"1.0 + {match.start()}c"
+                end_index = f"1.0 + {match.end()}c"
+                self.text_area.tag_add("keyword", start_index, end_index)
+
+        # Apply builtin functions highlight
+        for builtin in self.builtins:
+            for match in re.finditer(r'\b' + re.escape(builtin) + r'\b', text):
+                start_index = f"1.0 + {match.start()}c"
+                end_index = f"1.0 + {match.end()}c"
+                self.text_area.tag_add("builtin", start_index, end_index)
+
+        # Apply String Highlighting
+        for match in re.finditer(r'"[^"\\]*(?:\\.[^"\\]*)*"', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("string", start_index, end_index)
+
+        # Apply Number Highlighting
+        for match in re.finditer(r'\b\d+\b', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("number", start_index, end_index)
+
+        # Apply Comment Highlighting (assuming '#' for comments)
+        for match in re.finditer(r'#.*', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("comment", start_index, end_index)
+
+        # Apply bracket Highlighting
+        for match in re.finditer(r'[(){}\[\]]', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("bracket", start_index, end_index)
+
+        # Apply HTML Tag Highlighting
+        for match in re.finditer(r'<[a-zA-Z0-9]+(?:\s+[a-zA-Z0-9\-:]+(?:=(?:"[^"\\]*(?:\\.[^"\\]*)*"|\[^\\]*(?:\\.[^\\]*)*\'|[^\s>]+))?)*\s*>', text):
+                start_index = f"1.0 + {match.start()}c"
+                end_index = f"1.0 + {match.end()}c"
+                self.text_area.tag_add("html_tag", start_index, end_index)
+        
+        for match in re.finditer(r'</[a-zA-Z0-9]+\s*>', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("html_tag", start_index, end_index)
+
+        # Apply HTML Attribute Highlighting
+        for match in re.finditer(r'\b[a-zA-Z0-9\-]+\s*=', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c -1c"
+            self.text_area.tag_add("html_attribute", start_index, end_index)
+
+        # Apply HTML Attribute Value Highlighting
+        for match in re.finditer(r'="[^"\\]*(?:\\.[^"\\]*)*"', text):
+            start_index = f"1.0 + {match.start()}c + 2c"
+            end_index = f"1.0 + {match.end()}c - 1c"
+            self.text_area.tag_add("html_attribute_value", start_index, end_index)
+
+        # Apply HTML Comment Highlighting
+        for match in re.finditer(r'<!--.*?-->', text, re.DOTALL):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("html_comment", start_index, end_index)
+        
+        # Apply HTML Entity Highlighting
+        for match in re.finditer(r'&[a-zA-Z0-9]+;', text):
+            start_index = f"1.0 + {match.start()}c"
+            end_index = f"1.0 + {match.end()}c"
+            self.text_area.tag_add("html_entity", start_index, end_index)
 
 if __name__ == "__main__":
     root = tk.Tk()
